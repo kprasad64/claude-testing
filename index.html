@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 50px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: #fff;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .cell:hover {
+            background-color: #e0e0e0;
+        }
+        .cell.x {
+            color: #e74c3c;
+        }
+        .cell.o {
+            color: #3498db;
+        }
+        .status {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            min-height: 1.5rem;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #34495e;
+        }
+        .mode-select {
+            margin-bottom: 20px;
+        }
+        .mode-select button {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tic Tac Toe</h1>
+    <div class="mode-select">
+        <button id="pvpBtn">Player vs Player</button>
+        <button id="pvcBtn" class="active">Player vs Computer</button>
+    </div>
+    <div class="status" id="status">Player X's turn</div>
+    <div class="board" id="board"></div>
+    <button id="resetBtn">Reset Game</button>
+
+    <script>
+        const board = document.getElementById('board');
+        const status = document.getElementById('status');
+        const resetBtn = document.getElementById('resetBtn');
+        const pvpBtn = document.getElementById('pvpBtn');
+        const pvcBtn = document.getElementById('pvcBtn');
+
+        let currentPlayer = 'X';
+        let gameState = ['', '', '', '', '', '', '', '', ''];
+        let gameActive = true;
+        let vsComputer = true; // Default to player vs computer
+        const humanPlayer = 'X';
+        const aiPlayer = 'O';
+
+        const winConditions = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6]
+        ];
+
+        function handleCellClick(clickedCellEvent) {
+            const clickedCell = clickedCellEvent.target;
+            const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+
+            // If cell is already taken or game is not active, ignore
+            if (gameState[clickedCellIndex] !== '' || !gameActive) {
+                return;
+            }
+
+            // If playing against computer and it's not human's turn, ignore
+            if (vsComputer && currentPlayer !== humanPlayer) {
+                return;
+            }
+
+            // Human move
+            gameState[clickedCellIndex] = currentPlayer;
+            clickedCell.textContent = currentPlayer;
+            clickedCell.classList.add(currentPlayer.toLowerCase());
+
+            // Check result after human move
+            if (checkResult()) {
+                return; // Game ended
+            }
+
+            // If vs computer and game still active, computer moves
+            if (vsComputer && gameActive) {
+                // Disable board temporarily while computer thinks
+                board.style.pointerEvents = 'none';
+                status.textContent = 'Computer is thinking...';
+
+                // Small delay to make it feel natural
+                setTimeout(() => {
+                    computerMove();
+                    board.style.pointerEvents = 'auto';
+                }, 500);
+            } else if (!vsComputer) {
+                // Player vs player: switch turn
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                status.textContent = `Player ${currentPlayer}'s turn`;
+            }
+        }
+
+        function computerMove() {
+            if (!gameActive) return;
+
+            const moveIndex = minimaxMove();
+            if (moveIndex === -1) return; // No moves left (shouldn't happen if gameActive)
+
+            gameState[moveIndex] = aiPlayer;
+            const cell = board.children[moveIndex];
+            cell.textContent = aiPlayer;
+            cell.classList.add(aiPlayer.toLowerCase());
+
+            // Check result after computer move
+            if (!checkResult()) {
+                // If game still active, switch back to human
+                currentPlayer = humanPlayer;
+                status.textContent = `Player ${currentPlayer}'s turn`;
+            }
+        }
+
+        function checkResult() {
+            let roundWon = false;
+            let winner = null;
+
+            for (let i = 0; i < winConditions.length; i++) {
+                const [a, b, c] = winConditions[i];
+                if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                    roundWon = true;
+                    winner = gameState[a];
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                status.textContent = winner === humanPlayer ? 'Player X wins!' : 'Computer wins!';
+                gameActive = false;
+                return true;
+            }
+
+            if (!gameState.includes('')) {
+                status.textContent = 'Draw!';
+                gameActive = false;
+                return true;
+            }
+
+            return false;
+        }
+
+        function resetGame() {
+            currentPlayer = 'X';
+            gameState = ['', '', '', '', '', '', '', '', ''];
+            gameActive = true;
+            status.textContent = `Player X's turn`;
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('x', 'o');
+            });
+            board.style.pointerEvents = 'auto';
+        }
+
+        function initBoard() {
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.setAttribute('data-index', i);
+                cell.addEventListener('click', handleCellClick);
+                board.appendChild(cell);
+            }
+        }
+
+        // Minimax AI
+        function minimaxMove() {
+            let bestScore = -Infinity;
+            let moveIndex = -1;
+
+            for (let i = 0; i < 9; i++) {
+                if (gameState[i] === '') {
+                    gameState[i] = aiPlayer;
+                    let score = minimax(gameState, 0, false);
+                    gameState[i] = '';
+                    if (score > bestScore) {
+                        bestScore = score;
+                        moveIndex = i;
+                    }
+                }
+            }
+            return moveIndex;
+        }
+
+        function minimax(board, depth, isMaximizing) {
+            const winner = checkWinner(board);
+            if (winner === aiPlayer) return 10 - depth; // Faster win is better
+            if (winner === humanPlayer) return depth - 10; // Slower loss is better
+            if (!board.includes('')) return 0; // Draw
+
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === '') {
+                        board[i] = aiPlayer;
+                        let score = minimax(board, depth + 1, false);
+                        board[i] = '';
+                        bestScore = Math.max(score, bestScore);
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === '') {
+                        board[i] = humanPlayer;
+                        let score = minimax(board, depth + 1, true);
+                        board[i] = '';
+                        bestScore = Math.min(score, bestScore);
+                    }
+                }
+                return bestScore;
+            }
+        }
+
+        function checkWinner(board) {
+            for (let i = 0; i < winConditions.length; i++) {
+                const [a, b, c] = winConditions[i];
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    return board[a];
+                }
+            }
+            return null;
+        }
+
+        // Mode selection
+        pvpBtn.addEventListener('click', () => {
+            vsComputer = false;
+            pvpBtn.classList.add('active');
+            pvcBtn.classList.remove('active');
+            resetGame();
+        });
+
+        pvcBtn.addEventListener('click', () => {
+            vsComputer = true;
+            pvcBtn.classList.add('active');
+            pvpBtn.classList.remove('active');
+            resetGame();
+        });
+
+        resetBtn.addEventListener('click', resetGame);
+        initBoard();
+    </script>
+</body>
+</html>
